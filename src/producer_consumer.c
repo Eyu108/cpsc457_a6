@@ -152,8 +152,7 @@ void *producer(void *arg) {
  * Consumes items from the buffer
  */
 void *consumer(void *arg) {
-    int consumer_id = *(int *)arg;
-    free(arg);
+    free(arg); // Free the allocated ID (we don't need it)
     
     while (1) {
         // Check if all items have been consumed
@@ -164,8 +163,8 @@ void *consumer(void *arg) {
         }
         pthread_mutex_unlock(&item_counter_mutex);
         
-        // Consume item
-        int item = buffer_consume(&buffer);
+        // Consume item (we don't need to store the return value)
+        buffer_consume(&buffer);
         
         // Update global counter
         pthread_mutex_lock(&item_counter_mutex);

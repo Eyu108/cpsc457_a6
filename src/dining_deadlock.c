@@ -32,9 +32,6 @@ void *philosopher(void *arg) {
     int right_chopstick = (id + 1) % num_philosophers;  // Right chopstick
     int left_chopstick = id;                             // Left chopstick
     
-    // Seed random number generator for this thread
-    unsigned int seed = time(NULL) + id;
-    
     while (1) {
         // Think (delay before trying to eat)
         nap(1000);
