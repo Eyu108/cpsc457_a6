@@ -1,0 +1,29 @@
+# Compiled executables
+dining_deadlock
+dining_deadlock_free
+producer_consumer
+
+# Object files
+*.o
+obj/
+
+# Output files
+output_exp1.csv
+output_exp2.csv
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.DS_Store
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Core dumps
+core
+core.*
