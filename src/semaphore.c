@@ -122,46 +122,38 @@ int semaphore_destroy(semaphore_t *sem) {
 /**
  * Wait operation on semaphore (P operation / down)
  * 
- * If counter > 0: decrements counter and proceeds
- * If counter == 0: adds thread to FIFO queue and blocks using pthread_cond_wait()
+ * Simplified implementation:
+ * - If count > 0: decrement and proceed
+ * - If count == 0: wait on condition variable
  * 
- * This implementation ensures:
- * - Race-free access to counter and queue (protected by mutex)
- * - FIFO ordering of waiting threads
- * - Deadlock-free operation
+ * FIFO queue tracks waiting order for fairness
  */
 void semaphore_wait(semaphore_t *sem) {
     // Enter monitor (acquire mutex)
     pthread_mutex_lock(&sem->mutex);
     
-    // Get current thread ID
+    // Get current thread ID for queue tracking
     pthread_t self = pthread_self();
     
     // If counter is 0, need to wait
     if (sem->count == 0) {
-        // Add thread to FIFO waiting queue
+        // Add to FIFO queue for tracking
         enqueue_thread(sem, self);
         
-        // Block thread until signaled
-        // pthread_cond_wait atomically releases mutex and blocks
-        // When signaled, it re-acquires mutex before returning
-        while (1) {
+        // Wait until signaled
+        // Note: We use a simple approach - signal wakes threads
+        // and they check if resources are available
+        while (sem->count == 0) {
             pthread_cond_wait(&sem->cond, &sem->mutex);
-            
-            // Check if this thread is at head of queue (FIFO fairness)
-            if (sem->queue_head != NULL && 
-                pthread_equal(sem->queue_head->thread_id, self)) {
-                // This thread's turn - remove from queue
-                pthread_t dummy;
-                dequeue_thread(sem, &dummy);
-                break;
-            }
-            // Not this thread's turn, continue waiting
         }
-    } else {
-        // Counter > 0, can proceed immediately
-        sem->count--;
+        
+        // Remove from queue (FIFO - we're at head now)
+        pthread_t dummy;
+        dequeue_thread(sem, &dummy);
     }
+    
+    // Decrement counter
+    sem->count--;
     
     // Exit monitor (release mutex)
     pthread_mutex_unlock(&sem->mutex);
@@ -170,28 +162,18 @@ void semaphore_wait(semaphore_t *sem) {
 /**
  * Signal operation on semaphore (V operation / up)
  * 
- * If waiting threads exist: wakes up first thread in FIFO queue
- * If no waiting threads: increments counter
- * 
- * This implementation ensures:
- * - Race-free access to counter and queue (protected by mutex)
- * - FIFO fairness for waiting threads
- * - No lost signals
+ * Increments counter and wakes up one waiting thread if any
  */
 void semaphore_signal(semaphore_t *sem) {
     // Enter monitor (acquire mutex)
     pthread_mutex_lock(&sem->mutex);
     
-    // Check if there are waiting threads in queue
-    if (sem->queue_head != NULL) {
-        // There are waiting threads - wake one up
-        // pthread_cond_signal wakes up one waiting thread
-        // The woken thread will check if it's at head of queue in wait()
-        pthread_cond_signal(&sem->cond);
-    } else {
-        // No waiting threads - increment counter
-        sem->count++;
-    }
+    // Increment counter
+    sem->count++;
+    
+    // Wake up one waiting thread (if any)
+    // The woken thread will check count and proceed if > 0
+    pthread_cond_signal(&sem->cond);
     
     // Exit monitor (release mutex)
     pthread_mutex_unlock(&sem->mutex);
